@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+}
+
+/* 移动端优先：内容区最大宽度居中 */
+.app-shell {
+  @apply mx-auto min-h-screen w-full max-w-md pb-20;
+}
+
+.card {
+  @apply rounded-xl bg-white p-4 shadow-sm;
+}
+
+.btn-primary {
+  @apply rounded-lg bg-primary px-4 py-2.5 text-center font-medium text-white active:bg-primary-dark;
+}
+
+.btn-secondary {
+  @apply rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center font-medium text-gray-700 active:bg-gray-50;
+}
+
+.input {
+  @apply w-full rounded-lg border border-gray-200 px-3 py-2 text-base outline-none focus:border-primary;
+}
+
+.label {
+  @apply mb-1 block text-sm text-gray-500;
+}
