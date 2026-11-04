@@ -95,12 +95,14 @@ export default function StrengthPage() {
     return allPoints.filter((p) => range === 0 || p.date >= cutoff)
   }, [allPoints, range])
 
+  // 容量不区分动作：按训练日汇总当日全部动作的总容量
   const volumeRows = useMemo(() => {
+    if (!raw) return []
     const cutoff = range === 0 ? '' : addDays(todayStr(), -(range - 1))
-    return dailyVolumeSeries(selectedSets)
+    return dailyVolumeSeries(raw.dated)
       .filter((p) => range === 0 || p.date >= cutoff)
       .map((p) => ({ date: p.date, label: shortDate(p.date), value: p.value }))
-  }, [selectedSets, range])
+  }, [raw, range])
 
   const volumeTotal = volumeRows.reduce((a, p) => a + p.value, 0)
   const volumeAvg = volumeRows.length ? round2(volumeTotal / volumeRows.length) : 0
@@ -175,26 +177,27 @@ export default function StrengthPage() {
             <span className="text-xs text-gray-400">切换 ▾</span>
           </button>
 
+          {/* 时间范围：力量曲线与容量曲线共用 */}
+          <div className="mb-3 flex gap-1.5">
+            {RANGE_OPTIONS.map((r) => (
+              <button
+                key={r}
+                className={`flex-1 rounded-full py-1.5 text-xs ${
+                  range === r ? 'bg-primary text-white' : 'bg-white text-gray-500'
+                }`}
+                onClick={() => setRange(r)}
+              >
+                {r === 0 ? '全部' : `${r} 天`}
+              </button>
+            ))}
+          </div>
+
           {current && current.weightedSets === 0 ? (
             <div className="card py-8 text-center text-sm text-gray-400">
               该动作的记录均为自重，暂不支持重量曲线
             </div>
           ) : (
             <>
-              {/* 时间范围 */}
-              <div className="mb-3 flex gap-1.5">
-                {RANGE_OPTIONS.map((r) => (
-                  <button
-                    key={r}
-                    className={`flex-1 rounded-full py-1.5 text-xs ${
-                      range === r ? 'bg-primary text-white' : 'bg-white text-gray-500'
-                    }`}
-                    onClick={() => setRange(r)}
-                  >
-                    {r === 0 ? '全部' : `${r} 天`}
-                  </button>
-                ))}
-              </div>
 
               {/* 口径 */}
               <div className="mb-3 flex gap-1.5">
@@ -325,65 +328,6 @@ export default function StrengthPage() {
                 )}
               </div>
 
-              {/* 训练容量曲线 */}
-              <h2 className="mb-2 font-semibold">训练容量</h2>
-              <div className="card mb-3">
-                {volumeRows.length >= 2 ? (
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={volumeRows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-                      <XAxis
-                        dataKey="label"
-                        tick={{ fontSize: 11 }}
-                        interval="preserveStartEnd"
-                        minTickGap={24}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 11 }}
-                        domain={[0, 'auto']}
-                        tickFormatter={(v: number) => (v >= 1000 ? `${v / 1000}k` : `${v}`)}
-                      />
-                      <Tooltip
-                        labelFormatter={(_l: unknown, payload: any) => payload?.[0]?.payload?.date ?? ''}
-                        formatter={(v: number) => [`${v.toLocaleString()} kg`, '训练容量']}
-                      />
-                      <Bar dataKey="value" fill="#7c3aed" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="py-8 text-center text-sm text-gray-400">
-                    {volumeRows.length === 0
-                      ? '当前区间没有负重训练容量'
-                      : '需要至少 2 个训练日才能画出容量曲线'}
-                  </p>
-                )}
-                {volumeRows.length > 0 && (
-                  <div className="mt-2 flex justify-between text-xs text-gray-400">
-                    <span>
-                      总容量 <b className="text-gray-700">{volumeTotal.toLocaleString()}</b> kg
-                    </span>
-                    <span>
-                      日均 <b className="text-gray-700">{volumeAvg.toLocaleString()}</b> kg
-                    </span>
-                    <span>
-                      周变化{' '}
-                      <b
-                        className={
-                          volumeSlope > 0
-                            ? 'text-emerald-600'
-                            : volumeSlope < 0
-                              ? 'text-rose-500'
-                              : 'text-gray-700'
-                        }
-                      >
-                        {volumeSlope > 0 ? '+' : ''}
-                        {volumeSlope}
-                      </b>{' '}
-                      kg
-                    </span>
-                  </div>
-                )}
-              </div>
-
               {/* 明细 */}
               <h2 className="mb-2 font-semibold">区间记录</h2>
               <div className="card divide-y divide-gray-50 !p-0">
@@ -409,6 +353,69 @@ export default function StrengthPage() {
               </div>
             </>
           )}
+
+          {/* 训练容量曲线：按训练日汇总当日全部动作的总容量 */}
+          <h2 className="mb-2 font-semibold">
+            训练容量
+            <span className="ml-2 text-xs font-normal text-gray-400">全部动作 · 按日汇总</span>
+          </h2>
+          <div className="card mb-3">
+            {volumeRows.length >= 2 ? (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={volumeRows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11 }}
+                    interval="preserveStartEnd"
+                    minTickGap={24}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    domain={[0, 'auto']}
+                    tickFormatter={(v: number) => (v >= 1000 ? `${v / 1000}k` : `${v}`)}
+                  />
+                  <Tooltip
+                    labelFormatter={(_l: unknown, payload: any) => payload?.[0]?.payload?.date ?? ''}
+                    formatter={(v: number) => [`${v.toLocaleString()} kg`, '当日总容量']}
+                  />
+                  <Bar dataKey="value" fill="#7c3aed" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="py-8 text-center text-sm text-gray-400">
+                {volumeRows.length === 0
+                  ? '当前区间没有负重训练容量'
+                  : '需要至少 2 个训练日才能画出容量曲线'}
+              </p>
+            )}
+            {volumeRows.length > 0 && (
+              <div className="mt-2 flex justify-between text-xs text-gray-400">
+                <span>
+                  总容量 <b className="text-gray-700">{volumeTotal.toLocaleString()}</b> kg
+                </span>
+                <span>
+                  日均{' '}
+                  <b className="text-gray-700">{Math.round(volumeAvg).toLocaleString()}</b> kg
+                </span>
+                <span>
+                  周变化{' '}
+                  <b
+                    className={
+                      volumeSlope > 0
+                        ? 'text-emerald-600'
+                        : volumeSlope < 0
+                          ? 'text-rose-500'
+                          : 'text-gray-700'
+                    }
+                  >
+                    {volumeSlope > 0 ? '+' : ''}
+                    {volumeSlope}
+                  </b>{' '}
+                  kg
+                </span>
+              </div>
+            )}
+          </div>
         </>
       )}
 
